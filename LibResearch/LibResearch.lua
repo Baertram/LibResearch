@@ -82,8 +82,8 @@ local ItemTraitType2TraitIndex = {
     [ITEM_TRAIT_TYPE_WEAPON_DEFENDING]      = 5,        -- 5
     [ITEM_TRAIT_TYPE_WEAPON_TRAINING]       = 6,        -- 6
     [ITEM_TRAIT_TYPE_WEAPON_SHARPENED]      = 7,        -- 7
-    [ITEM_TRAIT_TYPE_WEAPON_DECISIVE]       = 8,        -- 8
-    [ITEM_TRAIT_TYPE_WEAPON_WEIGHTED]       = 8,        -- 8
+    [ITEM_TRAIT_TYPE_WEAPON_WEIGHTED]       = 8,        -- 8 --> Old, removed from game and exchanged by ITEM_TRAIT_TYPE_WEAPON_DECISIVE
+	[ITEM_TRAIT_TYPE_WEAPON_DECISIVE]       = 8,        -- 8
     [ITEM_TRAIT_TYPE_WEAPON_NIRNHONED]      = 9,        -- 26
     [ITEM_TRAIT_TYPE_WEAPON_INTRICATE]      = LIBRESEARCH_REASON_INTRICATE,        -- 9
     [ITEM_TRAIT_TYPE_WEAPON_ORNATE]         = LIBRESEARCH_REASON_ORNATE,        -- 10
@@ -95,7 +95,7 @@ local ItemTraitType2TraitIndex = {
     [ITEM_TRAIT_TYPE_ARMOR_WELL_FITTED]     = 4,        -- 14
     [ITEM_TRAIT_TYPE_ARMOR_TRAINING]        = 5,        -- 15
     [ITEM_TRAIT_TYPE_ARMOR_INFUSED]         = 6,        -- 16
-    [ITEM_TRAIT_TYPE_ARMOR_EXPLORATION]     = 7,        -- 17
+    [ITEM_TRAIT_TYPE_ARMOR_EXPLORATION]     = 7,        -- 17 --> Old, removed from game and exchanged by ITEM_TRAIT_TYPE_ARMOR_PROSPEROUS
     [ITEM_TRAIT_TYPE_ARMOR_PROSPEROUS]      = 7,        -- 17
     [ITEM_TRAIT_TYPE_ARMOR_DIVINES]         = 8,        -- 18
     [ITEM_TRAIT_TYPE_ARMOR_NIRNHONED]       = 9,        -- 25
@@ -273,6 +273,10 @@ end
 
 function libResearch:GetResearchMap()
 	return researchMap
+end
+
+function libResearch:GetTraitTypeToTraitIndex()
+	return ItemTraitType2TraitIndex
 end
 
 LibResearch = libResearch

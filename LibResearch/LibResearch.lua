@@ -1,4 +1,4 @@
-local libName, libVersion = "LibResearch", 42
+local libName, libVersion = "LibResearch", 43
 
 if _G[libName] ~= nil then d("["..libName.."]This library was already loaded!") return end
 local libResearch = {}
@@ -17,6 +17,13 @@ local BLACKSMITH 		= CRAFTING_TYPE_BLACKSMITHING
 local CLOTHIER 			= CRAFTING_TYPE_CLOTHIER
 local WOODWORK 			= CRAFTING_TYPE_WOODWORKING
 local JEWELRY_CRAFTING 	= CRAFTING_TYPE_JEWELRYCRAFTING
+
+local allowedCraftingSkilltypesForResearch = {
+	[BLACKSMITH] = true,
+	[WOODWORK] = true,
+	[CLOTHIER] = true,
+	[JEWELRY_CRAFTING] = true,
+}
 
 local researchMap = {
 	[BLACKSMITH] = {
@@ -65,8 +72,8 @@ local researchMap = {
 	},
 	[JEWELRY_CRAFTING] = {
         ARMOR = {
-            [EQUIP_TYPE_NECK] = 1,
-            [EQUIP_TYPE_RING] = 2,
+            [EQUIP_TYPE_NECK] = 2, --1, --todo: maybe ring and neck changed the order here? 20240626 -> API101042 Gold Road
+            [EQUIP_TYPE_RING] = 1, --2, --todo: maybe ring and neck changed the order here? 20240626 -> API101042 Gold Road
         },
 	}
 }
@@ -116,6 +123,24 @@ local ItemTraitType2TraitIndex = {
     [ITEM_TRAIT_TYPE_JEWELRY_ORNATE]        = LIBRESEARCH_REASON_ORNATE,        -- 24
 }
 
+
+local function getValidTraitIndex(itemTraitType)
+    local traitIndex = ItemTraitType2TraitIndex[itemTraitType] or 0
+    if type(traitIndex) == "number" then
+        if not (traitIndex >= 1 and traitIndex <= 9) then
+            return -1
+        end
+    end
+	return traitIndex
+end
+
+local function isResearchableCrafting(craftingSkillType)
+	if not allowedCraftingSkilltypesForResearch[craftingSkillType] then
+		return false
+	end
+	return true
+end
+
 --[[----------------------------------------------------------------------------
 	returns true if the character knows or is in the process of researching the
 	supplied trait; else returns false.
@@ -145,7 +170,7 @@ function libResearch:GetItemTraitResearchabilityInfo(itemLink)
 
 	local craftingSkillType, researchLineIndex, traitIndex = self:GetItemResearchInfo(itemLink)
 
-    local itemEquipType = GetItemLinkEquipType(itemLink)
+    --local itemEquipType = GetItemLinkEquipType(itemLink)
 	-- do this first to catch jewelry
 	if traitIndex == LIBRESEARCH_REASON_ORNATE or traitIndex == LIBRESEARCH_REASON_INTRICATE then
 		return 0, false, traitIndex
@@ -164,6 +189,7 @@ end
 
 --returns a trait key that is unique per researchable trait
 function libResearch:GetTraitKey(craftingSkillType, researchLineIndex, traitIndex)
+	if craftingSkillType == nil or researchLineIndex == nil or traitIndex == nil then return end
 	return craftingSkillType * 10000 + researchLineIndex * 100 + traitIndex
 end
 
@@ -184,8 +210,6 @@ function libResearch:GetItemCraftingSkill(itemLink)
                 return BLACKSMITH
             elseif armorType == ARMORTYPE_LIGHT or armorType == ARMORTYPE_MEDIUM then
                 return CLOTHIER
-            else
-                return -1
             end
         end
 	elseif itemType == ITEMTYPE_WEAPON then
@@ -199,8 +223,6 @@ function libResearch:GetItemCraftingSkill(itemLink)
 			return WOODWORK
 		elseif weaponType ~= WEAPONTYPE_NONE and weaponType ~= WEAPONTYPE_RUNE then
 			return BLACKSMITH
-		else
-			return -1
 		end
 	end
     return -1
@@ -212,34 +234,30 @@ end
 --]]----------------------------------------------------------------------------
 function libResearch:GetResearchTraitIndex(itemLink)
 	local itemTraitType = GetItemLinkTraitInfo(itemLink)
-    local traitIndex = ItemTraitType2TraitIndex[itemTraitType] or 0
-    if type(traitIndex) == "number" then
-        if not (traitIndex >= 1 and traitIndex <= 9) then
-            return -1
-        end
-    end
-	return traitIndex
+	return getValidTraitIndex(itemTraitType)
 end
 
 --[[----------------------------------------------------------------------------
 	returns an index that corresponds to the weapon or armor type within the
 	given crafting skill or returns -1 if not applicable
 --]]----------------------------------------------------------------------------
+---
 function libResearch:GetResearchLineIndex(itemLink)
 	local craftingSkillType = libResearch:GetItemCraftingSkill(itemLink)
 	local armorType = GetItemLinkArmorType(itemLink)
 	local equipType = GetItemLinkEquipType(itemLink)
 	local weaponType = GetItemLinkWeaponType(itemLink)
 
-	if craftingSkillType ~= BLACKSMITH and craftingSkillType ~= WOODWORK and craftingSkillType ~= CLOTHIER and craftingSkillType ~= JEWELRY_CRAFTING then
+	if not allowedCraftingSkilltypesForResearch[craftingSkillType] then
 		return -1
 	end
 
+	local researchMapForCraftingType = researchMap[craftingSkillType]
 	local researchLineIndex
 	--if is armor (including shields and jewelry)
 	if     armorType ~= ARMORTYPE_NONE or weaponType == WEAPONTYPE_SHIELD
         or equipType == EQUIP_TYPE_NECK or equipType == EQUIP_TYPE_RING then
-        researchLineIndex = researchMap[craftingSkillType].ARMOR[equipType]
+        researchLineIndex = researchMapForCraftingType.ARMOR[equipType]
 		if armorType == ARMORTYPE_MEDIUM then
 			researchLineIndex = researchLineIndex + 7
 		end
@@ -249,7 +267,7 @@ function libResearch:GetResearchLineIndex(itemLink)
 		if weaponType == WEAPONTYPE_NONE then
 			return -1
 		end
-		researchLineIndex = researchMap[craftingSkillType].WEAPON[weaponType]
+		researchLineIndex = researchMapForCraftingType.WEAPON[weaponType]
 	end
 
 	return researchLineIndex or -1
@@ -265,18 +283,27 @@ end
 	false otherwise
 --]]----------------------------------------------------------------------------
 function libResearch:IsBigThreeCrafting(craftingSkillType)
-	if craftingSkillType == BLACKSMITH or craftingSkillType == CLOTHIER or craftingSkillType == WOODWORK or craftingSkillType == JEWELRY_CRAFTING then
-		return true
-	end
-	return false
+	return isResearchableCrafting(craftingSkillType)
+end
+
+function libResearch:IsResearchableCrafting(craftingSkillType)
+	return isResearchableCrafting(craftingSkillType)
 end
 
 function libResearch:GetResearchMap()
 	return researchMap
 end
 
+function libResearch:GetCraftingTypeResearchMap(craftingSkillType)
+	return researchMap[craftingSkillType]
+end
+
 function libResearch:GetTraitTypeToTraitIndex()
 	return ItemTraitType2TraitIndex
+end
+
+function libResearch:GetTraitIndexByTraitType(itemTraitType)
+	return getValidTraitIndex(itemTraitType)
 end
 
 LibResearch = libResearch
